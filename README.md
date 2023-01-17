@@ -84,7 +84,7 @@ public:
     async_mutex_lock &operator=(const async_mutex_lock &) = delete;
 
     /**
-     * Unlocks the held mutex and destroyes the lock.
+     * Unlocks the held mutex and destroys the lock.
      **/
     ~async_mutex_lock();
 };
