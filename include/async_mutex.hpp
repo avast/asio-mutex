@@ -9,8 +9,6 @@
 #include <atomic>
 #include <functional>
 
-using namespace std::chrono_literals;
-
 namespace avast::asio {
 
 class async_mutex_lock;
@@ -27,7 +25,11 @@ struct locked_waiter {
      * \brief Constructs a new locked_waiter.
      * \param next_waiter Pointer to the waiter to prepend this locked_waiter to.
      **/
-    locked_waiter(locked_waiter *next_waiter): next(next_waiter) {}
+    explicit locked_waiter(locked_waiter *next_waiter): next(next_waiter) {}
+    locked_waiter(locked_waiter &&) = delete;
+    locked_waiter(const locked_waiter &) = delete;
+    locked_waiter &operator=(locked_waiter &&) = delete;
+    locked_waiter &operator=(const locked_waiter &) = delete;
     /**
      * \brief Destructor.
      **/
@@ -140,6 +142,10 @@ public:
      * \brief Constructs a new unlocked mutex.
      **/
     async_mutex() noexcept = default;
+    async_mutex(const async_mutex &) = delete;
+    async_mutex(async_mutex &&) = delete;
+    async_mutex &operator=(const async_mutex &) = delete;
+    async_mutex &operator=(async_mutex &&) = delete;
 
     /**
      * \brief Destroys the mutex.
@@ -246,6 +252,7 @@ public:
 
             // Transfer the list to m_waiters, reversing the list in the process
             // so that the head of the list is the first waiter to be resumed
+            // NOLINTNEXTLINE(performance-no-int-to-ptr)
             auto *next = reinterpret_cast<detail::locked_waiter *>(old_state);
             do {
                 auto *temp = next->next;
@@ -309,6 +316,11 @@ public:
      **/
     async_mutex_lock(async_mutex_lock &&other) noexcept: m_mutex(other.m_mutex) { other.m_mutex = nullptr; }
 
+    async_mutex_lock &operator=(async_mutex_lock &&other) noexcept {
+        m_mutex = std::exchange(other.m_mutex, nullptr);
+        return *this;
+    }
+
     /**
      * \brief Copy constructor (deleted).
      **/
@@ -320,7 +332,7 @@ public:
     async_mutex_lock &operator=(const async_mutex_lock &) = delete;
 
     ~async_mutex_lock() {
-        if (m_mutex) {
+        if (m_mutex != nullptr) {
             m_mutex->unlock();
         }
     }
@@ -347,11 +359,12 @@ void async_lock_initiator_base<Waiter>::operator()(Handler &&handler) {
                                                        std::memory_order_acquire, std::memory_order_relaxed))
             {
                 // Lock acquired, resume the awaiter stright away
-                Waiter(m_mutex, nullptr, std::move(handler)).completion();
+                Waiter(m_mutex, nullptr, std::forward<Handler>(handler)).completion();
                 return;
             }
         } else {
-            auto *waiter = new Waiter(m_mutex, reinterpret_cast<locked_waiter *>(old_state), std::move(handler));
+            // NOLINTNEXTLINE(performance-no-int-to-ptr)
+            auto *waiter = new Waiter(m_mutex, reinterpret_cast<locked_waiter *>(old_state), std::forward<Handler>(handler));
             if (m_mutex->m_state.compare_exchange_weak(old_state, reinterpret_cast<std::uintptr_t>(waiter),
                                                        std::memory_order_release, std::memory_order_relaxed))
             {
