@@ -20,9 +20,7 @@ public:
     explicit TestThread() = default;
     TestThread(TestThread &&) noexcept = delete;
 
-    boost::asio::io_context &ioc() {
-        return m_ioc;
-    }
+    boost::asio::io_context &ioc() { return m_ioc; }
 
     void start() {
         m_thread = std::thread([this]() {
@@ -52,19 +50,13 @@ private:
     std::stop_source m_stop;
 };
 
-
-enum class EventType {
-    Locked,
-    Unlocked
-};
+enum class EventType { Locked, Unlocked };
 
 struct Event {
     std::size_t idx;
     EventType event;
 
-    Event(std::size_t idx, EventType event)
-        : idx(idx), event(event)
-    {}
+    Event(std::size_t idx, EventType event): idx(idx), event(event) {}
     bool operator==(const Event &other) const = default;
 };
 
@@ -88,7 +80,7 @@ TEST_CASE("async_mutex_lock") {
         // the mutex remains locked
         REQUIRE_FALSE(mutex.try_lock());
 
-    } // the lock is destroed and mutex should be unlocked
+    }                          // the lock is destroyed and mutex should be unlocked
     REQUIRE(mutex.try_lock()); // lock is acquired
     mutex.unlock();
 }
@@ -108,7 +100,6 @@ TEST_CASE("scoped_lock_async (simple)") {
 
         eventLog.emplace_back(idx, EventType::Unlocked);
     };
-
 
     boost::asio::co_spawn(thread.ioc(), testFunc(1), boost::asio::detached);
     boost::asio::co_spawn(thread.ioc(), testFunc(2), boost::asio::detached);
@@ -185,7 +176,8 @@ TEST_CASE("lock_async (multithreaded)") {
     EventLog eventLog;
     avast::asio::async_mutex mutex;
 
-    const auto testFunc = [&eventLog, &mutex](boost::asio::io_context &ioc, std::size_t idx) -> boost::asio::awaitable<void> {
+    const auto testFunc = [&eventLog, &mutex](boost::asio::io_context &ioc,
+                                              std::size_t idx) -> boost::asio::awaitable<void> {
         co_await mutex.lock_async(boost::asio::use_awaitable);
         eventLog.emplace_back(idx, EventType::Locked);
 
@@ -203,8 +195,7 @@ TEST_CASE("lock_async (multithreaded)") {
         threads[i].start();
     }
 
-    for (auto &thread : threads) {
+    for (auto &thread: threads) {
         REQUIRE(thread.waitForFinished(5s));
     }
 }
-
