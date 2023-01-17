@@ -59,10 +59,10 @@ enum class EventType {
 };
 
 struct Event {
-    int idx;
+    std::size_t idx;
     EventType event;
 
-    Event(int idx, EventType event)
+    Event(std::size_t idx, EventType event)
         : idx(idx), event(event)
     {}
     bool operator==(const Event &other) const = default;
@@ -127,7 +127,7 @@ TEST_CASE("lock_async (simple)") {
     EventLog eventLog;
     avast::asio::async_mutex mutex;
 
-    const auto testFunc = [&thread, &eventLog, &mutex](int idx) -> boost::asio::awaitable<void> {
+    const auto testFunc = [&thread, &eventLog, &mutex](std::size_t idx) -> boost::asio::awaitable<void> {
         co_await mutex.lock_async(boost::asio::use_awaitable);
         eventLog.emplace_back(idx, EventType::Locked);
 
@@ -156,7 +156,7 @@ TEST_CASE("lock_async (multiple coroutines)") {
     EventLog eventLog;
     avast::asio::async_mutex mutex;
 
-    const auto testFunc = [&thread, &eventLog, &mutex](int idx) -> boost::asio::awaitable<void> {
+    const auto testFunc = [&thread, &eventLog, &mutex](std::size_t idx) -> boost::asio::awaitable<void> {
         co_await mutex.lock_async(boost::asio::use_awaitable);
         eventLog.emplace_back(idx, EventType::Locked);
 
@@ -168,14 +168,14 @@ TEST_CASE("lock_async (multiple coroutines)") {
         mutex.unlock();
     };
 
-    for (int i = 0; i < 10; ++i) {
+    for (std::size_t i = 0; i < 10; ++i) {
         boost::asio::co_spawn(thread.ioc(), testFunc(i), boost::asio::detached);
     }
     thread.start();
     REQUIRE(thread.waitForFinished(10s));
 
     REQUIRE(eventLog.size() == 20);
-    for (int eventIdx = 0, testIdx = 0; eventIdx < eventLog.size(); eventIdx += 2, testIdx += 1) {
+    for (std::size_t eventIdx = 0, testIdx = 0; eventIdx < eventLog.size(); eventIdx += 2, testIdx += 1) {
         REQUIRE(eventLog[eventIdx] == Event{testIdx, EventType::Locked});
         REQUIRE(eventLog[eventIdx + 1] == Event{testIdx, EventType::Unlocked});
     }
@@ -185,7 +185,7 @@ TEST_CASE("lock_async (multithreaded)") {
     EventLog eventLog;
     avast::asio::async_mutex mutex;
 
-    const auto testFunc = [&eventLog, &mutex](boost::asio::io_context &ioc, int idx) -> boost::asio::awaitable<void> {
+    const auto testFunc = [&eventLog, &mutex](boost::asio::io_context &ioc, std::size_t idx) -> boost::asio::awaitable<void> {
         co_await mutex.lock_async(boost::asio::use_awaitable);
         eventLog.emplace_back(idx, EventType::Locked);
 
@@ -198,7 +198,7 @@ TEST_CASE("lock_async (multithreaded)") {
     };
 
     TestThread threads[10];
-    for (int i = 0; i < 10; ++i) {
+    for (std::size_t i = 0; i < 10; ++i) {
         boost::asio::co_spawn(threads[i].ioc(), testFunc(threads[i].ioc(), i), boost::asio::detached);
         threads[i].start();
     }
