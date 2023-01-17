@@ -171,7 +171,7 @@ public:
      * \return Returns `true` when the lock has been acquired, `false` when the
      *         lock is already held by someone else.
      * **/
-    bool try_lock() noexcept
+    [[nodiscard]] bool try_lock() noexcept
     {
         auto old_state = not_locked;
         return m_state.compare_exchange_strong(
@@ -199,6 +199,7 @@ public:
     boost::asio::awaitable<> lock_async(LockToken &&token);
 #else
     template<BOOST_ASIO_COMPLETION_TOKEN_FOR(void()) LockToken>
+    [[nodiscard]]
     BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_PREFIX(LockToken, void())
     lock_async(BOOST_ASIO_MOVE_ARG(LockToken) token)
     BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_SUFFIX((
@@ -228,6 +229,7 @@ public:
     boost::asio::awaitable<async_mutex_lock> scoped_lock_async(LockToken &&token);
 #else
     template<BOOST_ASIO_COMPLETION_TOKEN_FOR(void(async_mutex_lock)) LockToken>
+    [[nodiscard]]
     BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_PREFIX(LockToken, void(async_mutex_lock))
     scoped_lock_async(BOOST_ASIO_MOVE_ARG(LockToken) token)
     BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_SUFFIX((
