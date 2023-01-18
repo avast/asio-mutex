@@ -57,16 +57,16 @@ public:
      *
      * It's awaiter's responsibility to release the lock by calling `unlock()`.
      **/
-    boost::asio::awaitable<> lock_async(LockToken);
+    boost::asio::awaitable<> async_lock(LockToken);
 
     /**
      * Asynchronously acquires a lock and returns a scoped lock.
      *
-     * Behaves exactly like `lock_async()`, except that the result of `co_await`ing the
+     * Behaves exactly like `async_lock()`, except that the result of `co_await`ing the
      * returned awaitable is a scoped lock object, which will automatically release the
      * lock when destroyed.
      **/
-    boost::asio::awaitable<avast::asio::async_mutex_lock> scoped_lock_async(LockToken);
+    boost::asio::awaitable<avast::asio::async_mutex_lock> async_scoped_lock(LockToken);
 
 
     /**

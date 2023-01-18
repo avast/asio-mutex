@@ -47,7 +47,7 @@ struct locked_waiter {
 };
 
 /**
- * \brief Locked waiter that used `async_mutex::lock_async()` to acquire the lock.
+ * \brief Locked waiter that used `async_mutex::async_lock()` to acquire the lock.
  **/
 template <typename Token>
 struct async_locked_waiter final: public locked_waiter {
@@ -67,7 +67,7 @@ private:
 };
 
 /**
- * \brief Locked waiter that used `async_mutex::scoped_lock_async()` to acquire the lock.
+ * \brief Locked waiter that used `async_mutex::async_scoped_lock()` to acquire the lock.
  **/
 template <typename Token>
 struct scoped_async_locked_waiter: public locked_waiter {
@@ -107,7 +107,7 @@ public:
      *                has completed (in our case, the lock has been acquired).
      * \tparam Handler A callable with signature void(T) where T is the type of the object that will be
      *                 returned as a result of `co_await`ing the operation. In our case that's either
-     *                 `void` for `lock_async()` or `async_mutex_lock` for `scoped_lock_async()`.
+     *                 `void` for `async_lock()` or `async_mutex_lock` for `async_scoped_lock()`.
      **/
     template <typename Handler>
     void operator()(Handler &&handler);
@@ -123,7 +123,7 @@ template <typename Token>
 using initiate_async_lock = async_lock_initiator_base<async_locked_waiter<Token>>;
 
 /**
- * \brief Initiator for the scoped_lock_async() operation.
+ * \brief Initiator for the async_scoped_lock() operation.
  **/
 template <typename Token>
 using initiate_scoped_async_lock = async_lock_initiator_base<scoped_async_locked_waiter<Token>>;
@@ -185,11 +185,11 @@ public:
      **/
 #ifdef DOXYGEN
     template <typename LockToken>
-    boost::asio::awaitable<> lock_async(LockToken &&token);
+    boost::asio::awaitable<> async_lock(LockToken &&token);
 #else
     template <BOOST_ASIO_COMPLETION_TOKEN_FOR(void()) LockToken>
     [[nodiscard]] BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_PREFIX(LockToken, void())
-        lock_async(BOOST_ASIO_MOVE_ARG(LockToken) token) BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_SUFFIX(
+        async_lock(BOOST_ASIO_MOVE_ARG(LockToken) token) BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_SUFFIX(
             (async_initiate<LockToken, void()>(declval<detail::initiate_async_lock>(), token))) {
         using Handler = typename boost::asio::async_result<std::decay_t<LockToken>, void()>::handler_type;
         return boost::asio::async_initiate<LockToken, void()>(detail::initiate_async_lock<Handler>(this), token);
@@ -199,7 +199,7 @@ public:
     /**
      * \brief Asynchronously acquires a lock and returns a scoped lock helper.
      *
-     * Behaves exactly as `lock_async()`, except that the result of `co_await`ing the
+     * Behaves exactly as `async_lock()`, except that the result of `co_await`ing the
      * returned awaitable is a scoped lock object, which will automatically release the
      * lock when destroyed.
      *
@@ -211,11 +211,11 @@ public:
      **/
 #ifdef DOXYGEN
     template <typename LockToken>
-    boost::asio::awaitable<async_mutex_lock> scoped_lock_async(LockToken &&token);
+    boost::asio::awaitable<async_mutex_lock> async_scoped_lock(LockToken &&token);
 #else
     template <BOOST_ASIO_COMPLETION_TOKEN_FOR(void(async_mutex_lock)) LockToken>
     [[nodiscard]] BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_PREFIX(LockToken, void(async_mutex_lock))
-        scoped_lock_async(BOOST_ASIO_MOVE_ARG(LockToken) token) BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_SUFFIX(
+        async_scoped_lock(BOOST_ASIO_MOVE_ARG(LockToken) token) BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_SUFFIX(
             (async_initiate<LockToken, void(async_mutex_lock)>(declval<detail::initiate_scoped_async_lock>(), token))) {
         using Handler =
             typename boost::asio::async_result<std::decay_t<LockToken>, void(async_mutex_lock)>::handler_type;
