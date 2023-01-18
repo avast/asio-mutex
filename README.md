@@ -7,6 +7,17 @@ coroutine code.
 *Credits*: the implementation of the mutex itself is heavily inspired by Lewis Bakers's `async_mutex`
 from [cppcoro](https://github.com/lewissbaker/cppcoro/), published under the MIT license.
 
+## Dependencies
+
+* Boost >= 1.80.0 - for obvious reasons
+* Doxygen - optional, use `make doc` to generate doxygen documentation (in build/doc/html)
+* Catch2 - optional, use `make check` or `make checkVerbose` to run tests
+
+## CMake Options
+
+* `-DENABLE_TESTING=ON|OFF` - default `ON`, set to off to not build tests
+* `-DSANITIZER=asan|tsan|ubsan|msan` - default empty, set to one of the values to build with the given sanitizer
+
 ## API
 
 ```cpp
