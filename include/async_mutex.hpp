@@ -342,6 +342,7 @@ template <template <typename Token> typename Waiter>
 template <typename Handler>
 void async_lock_initiator_base<Waiter>::operator()(Handler &&handler) {
     auto old_state = m_mutex->m_state.load(std::memory_order_acquire);
+    std::unique_ptr<Waiter<Handler>> waiter;
     while (true) {
         if (old_state == async_mutex::not_locked) {
             if (m_mutex->m_state.compare_exchange_weak(old_state, async_mutex::locked_no_waiters,
@@ -353,8 +354,12 @@ void async_lock_initiator_base<Waiter>::operator()(Handler &&handler) {
             }
         } else {
             // NOLINTNEXTLINE(performance-no-int-to-ptr)
-            auto *waiter = new Waiter(m_mutex, reinterpret_cast<locked_waiter *>(old_state), std::forward<Handler>(handler));
-            if (m_mutex->m_state.compare_exchange_weak(old_state, reinterpret_cast<std::uintptr_t>(waiter),
+            if (!waiter) {
+                waiter.reset(new Waiter(m_mutex, reinterpret_cast<locked_waiter *>(old_state), std::forward<Handler>(handler)));
+            } else {
+                waiter->next = reinterpret_cast<locked_waiter *>(old_state);
+            }
+            if (m_mutex->m_state.compare_exchange_weak(old_state, reinterpret_cast<std::uintptr_t>(waiter.release()),
                                                        std::memory_order_release, std::memory_order_relaxed))
             {
                 return;
