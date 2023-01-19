@@ -90,7 +90,7 @@ private:
 /**
  * \brief An initiator for boost::asio::async_initiate().
  **/
-template <typename Waiter>
+template <template <typename Token> typename Waiter>
 class async_lock_initiator_base {
 public:
     /**
@@ -119,14 +119,12 @@ protected:
 /**
  * \brief Initiator for the async_lock() operation.
  **/
-template <typename Token>
-using initiate_async_lock = async_lock_initiator_base<async_locked_waiter<Token>>;
+using initiate_async_lock = async_lock_initiator_base<async_locked_waiter>;
 
 /**
  * \brief Initiator for the async_scoped_lock() operation.
  **/
-template <typename Token>
-using initiate_scoped_async_lock = async_lock_initiator_base<scoped_async_locked_waiter<Token>>;
+using initiate_scoped_async_lock = async_lock_initiator_base<scoped_async_locked_waiter>;
 
 } // namespace detail
 /** \endinternal **/
@@ -189,8 +187,7 @@ public:
 #else
     template <boost::asio::completion_token_for<void()> LockToken>
     [[nodiscard]] auto async_lock(LockToken&& token) {
-        using Handler = typename boost::asio::async_result<std::decay_t<LockToken>, void()>::handler_type;
-        return boost::asio::async_initiate<LockToken, void()>(detail::initiate_async_lock<Handler>(this), token);
+        return boost::asio::async_initiate<LockToken, void()>(detail::initiate_async_lock(this), token);
     }
 #endif
 
@@ -213,10 +210,8 @@ public:
 #else
     template <boost::asio::completion_token_for<void(async_mutex_lock)> LockToken>
     [[nodiscard]] auto async_scoped_lock(LockToken&& token) {
-        using Handler =
-            typename boost::asio::async_result<std::decay_t<LockToken>, void(async_mutex_lock)>::handler_type;
         return boost::asio::async_initiate<LockToken, void(async_mutex_lock)>(
-            detail::initiate_scoped_async_lock<Handler>(this), token);
+            detail::initiate_scoped_async_lock(this), token);
     }
 #endif
 
@@ -266,7 +261,7 @@ public:
     }
 
 private:
-    template <typename Waiter>
+    template <template <typename Token> typename Waiter>
     friend class detail::async_lock_initiator_base;
 
     /**
@@ -343,7 +338,7 @@ void scoped_async_locked_waiter<Token>::completion() {
     m_token(async_mutex_lock{*m_mutex, std::adopt_lock});
 }
 
-template <typename Waiter>
+template <template <typename Token> typename Waiter>
 template <typename Handler>
 void async_lock_initiator_base<Waiter>::operator()(Handler &&handler) {
     auto old_state = m_mutex->m_state.load(std::memory_order_acquire);
