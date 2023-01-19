@@ -187,10 +187,8 @@ public:
     template <typename LockToken>
     boost::asio::awaitable<> async_lock(LockToken &&token);
 #else
-    template <BOOST_ASIO_COMPLETION_TOKEN_FOR(void()) LockToken>
-    [[nodiscard]] BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_PREFIX(LockToken, void())
-        async_lock(BOOST_ASIO_MOVE_ARG(LockToken) token) BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_SUFFIX(
-            (async_initiate<LockToken, void()>(declval<detail::initiate_async_lock>(), token))) {
+    template <boost::asio::completion_token_for<void()> LockToken>
+    [[nodiscard]] auto async_lock(LockToken&& token) {
         using Handler = typename boost::asio::async_result<std::decay_t<LockToken>, void()>::handler_type;
         return boost::asio::async_initiate<LockToken, void()>(detail::initiate_async_lock<Handler>(this), token);
     }
@@ -213,10 +211,8 @@ public:
     template <typename LockToken>
     boost::asio::awaitable<async_mutex_lock> async_scoped_lock(LockToken &&token);
 #else
-    template <BOOST_ASIO_COMPLETION_TOKEN_FOR(void(async_mutex_lock)) LockToken>
-    [[nodiscard]] BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_PREFIX(LockToken, void(async_mutex_lock))
-        async_scoped_lock(BOOST_ASIO_MOVE_ARG(LockToken) token) BOOST_ASIO_INITFN_AUTO_RESULT_TYPE_SUFFIX(
-            (async_initiate<LockToken, void(async_mutex_lock)>(declval<detail::initiate_scoped_async_lock>(), token))) {
+    template <boost::asio::completion_token_for<void(async_mutex_lock)> LockToken>
+    [[nodiscard]] auto async_scoped_lock(LockToken&& token) {
         using Handler =
             typename boost::asio::async_result<std::decay_t<LockToken>, void(async_mutex_lock)>::handler_type;
         return boost::asio::async_initiate<LockToken, void(async_mutex_lock)>(
