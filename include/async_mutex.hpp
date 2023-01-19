@@ -70,7 +70,7 @@ private:
  * \brief Locked waiter that used `async_mutex::async_scoped_lock()` to acquire the lock.
  **/
 template <typename Token>
-struct scoped_async_locked_waiter: public locked_waiter {
+struct scoped_async_locked_waiter final: public locked_waiter {
     /**
      * \brief Constructs a new scoped_async_locked_waiter.
      * \param mutex A mutex that the waiter is trying to acquire a lock for.
