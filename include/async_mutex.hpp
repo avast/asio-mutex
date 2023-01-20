@@ -387,10 +387,11 @@ void async_lock_initiator_base<Waiter>::operator()(Handler &&handler) {
             } else {
                 waiter->next = reinterpret_cast<locked_waiter *>(old_state);
             }
-            if (m_mutex->m_state.compare_exchange_weak(old_state, reinterpret_cast<std::uintptr_t>(waiter.release()),
+            if (m_mutex->m_state.compare_exchange_weak(old_state, reinterpret_cast<std::uintptr_t>(waiter.get()),
                                                        std::memory_order_release, std::memory_order_relaxed))
             {
                 std::cout << "initiator=" << this << " locked" << std::endl;
+                waiter.release();
                 return;
             }
         }
