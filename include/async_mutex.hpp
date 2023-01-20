@@ -6,6 +6,7 @@
 
 #include <atomic>
 #include <functional>
+#include <iostream>
 
 namespace avast::asio {
 
@@ -60,7 +61,11 @@ struct async_locked_waiter final: public locked_waiter {
     async_locked_waiter([[maybe_unused]] async_mutex *mutex, locked_waiter *next_waiter, Token &&token):
         locked_waiter(next_waiter), m_token(std::move(token)) {}
 
-    void completion() override { m_token(); }
+    void completion() override {
+        std::cout << "waiter=" << this << " m_token()" << std::endl;
+        m_token();
+        std::cout << "waiter=" << this << " m_token() done" << std::endl;
+    }
 
 private:
     Token m_token; //!< The completion token to invoke when the lock is acquired.
@@ -98,8 +103,21 @@ public:
      *
      * \param mutex A mutex on which the asynchronous lock operation is being initiated.
      **/
-    explicit async_lock_initiator_base(async_mutex *mutex): m_mutex(mutex) {}
+    explicit async_lock_initiator_base(async_mutex *mutex): m_mutex(mutex) {
+        std::cout << "initiator=" << this << " constructor" << std::endl;
+    }
 
+    async_lock_initiator_base(const async_lock_initiator_base& o): m_mutex(o.m_mutex) {
+        std::cout << "initiator=" << this << " copy=" << &o << std::endl;
+    }
+
+    async_lock_initiator_base(async_lock_initiator_base&& o): m_mutex(o.m_mutex) {
+        std::cout << "initiator=" << this << " move=" << &o << std::endl;
+    }
+
+    ~async_lock_initiator_base() {
+        std::cout << "initiator=" << this << " destructor" << std::endl;
+    }
     /**
      * \brief Invoked by boost asio when the asynchronous operation is initiated.
      *
@@ -256,7 +274,9 @@ public:
         m_waiters = waiters_head->next;
 
         // Complete the async operation.
+        std::cout << "waiters_head=" << waiters_head << " completion" << std::endl;
         waiters_head->completion();
+        std::cout << "waiters_head=" << waiters_head << " delete" << std::endl;
         delete waiters_head;
     }
 
@@ -341,6 +361,7 @@ void scoped_async_locked_waiter<Token>::completion() {
 template <template <typename Token> typename Waiter>
 template <typename Handler>
 void async_lock_initiator_base<Waiter>::operator()(Handler &&handler) {
+    std::cout << "initiator=" << this << " operator()" << std::endl;
     auto old_state = m_mutex->m_state.load(std::memory_order_acquire);
     std::unique_ptr<Waiter<Handler>> waiter;
     while (true) {
@@ -349,19 +370,23 @@ void async_lock_initiator_base<Waiter>::operator()(Handler &&handler) {
                                                        std::memory_order_acquire, std::memory_order_relaxed))
             {
                 // Lock acquired, resume the awaiter stright away
+                std::cout << "initiator=" << this << " not_locked calling completion" << std::endl;
                 Waiter(m_mutex, nullptr, std::forward<Handler>(handler)).completion();
+                std::cout << "initiator=" << this << " not_locked" << std::endl;
                 return;
             }
         } else {
             // NOLINTNEXTLINE(performance-no-int-to-ptr)
             if (!waiter) {
                 waiter.reset(new Waiter(m_mutex, reinterpret_cast<locked_waiter *>(old_state), std::forward<Handler>(handler)));
+                std::cout << "initiator=" << this << " new waiter=" <<  waiter << std::endl;
             } else {
                 waiter->next = reinterpret_cast<locked_waiter *>(old_state);
             }
             if (m_mutex->m_state.compare_exchange_weak(old_state, reinterpret_cast<std::uintptr_t>(waiter.release()),
                                                        std::memory_order_release, std::memory_order_relaxed))
             {
+                std::cout << "initiator=" << this << " locked" << std::endl;
                 return;
             }
         }

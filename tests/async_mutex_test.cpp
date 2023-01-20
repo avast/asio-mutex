@@ -4,6 +4,7 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/detached.hpp>
 
+#include <coroutine>
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -155,14 +156,20 @@ TEST_CASE("async_lock (multiple coroutines)") {
 
     const auto testFunc = [&thread, &eventLog, &mutex](std::size_t idx) -> boost::asio::awaitable<void> {
         eventLog.emplace_back(idx, EventType::Locking);
+        std::cout << "idx=" << idx << " locking" << std::endl;
         co_await mutex.async_lock(boost::asio::use_awaitable);
+        std::cout << "idx=" << idx << " locked" << std::endl;
         eventLog.emplace_back(idx, EventType::Locked);
 
         boost::asio::steady_timer timer{thread.ioc()};
         timer.expires_after(100ms);
-        co_await timer.async_wait(boost::asio::use_awaitable);
+        if (idx == 0) {
+            co_await timer.async_wait(boost::asio::use_awaitable);
+        }
 
         eventLog.emplace_back(idx, EventType::Unlocked);
+        std::cout << "idx=" << idx << " unlocking" << std::endl;
+        std::cout << "idx=" << idx << " unlocked" << std::endl;
         mutex.unlock();
     };
 
@@ -180,6 +187,92 @@ TEST_CASE("async_lock (multiple coroutines)") {
     }
     REQUIRE(eventLog[11] == Event{0, EventType::Unlocked});
     for (std::size_t eventIdx = 12, testIdx = 1; eventIdx < eventLog.size(); eventIdx += 2, testIdx += 1) {
+        REQUIRE(eventLog[eventIdx] == Event{testIdx, EventType::Locked});
+        REQUIRE(eventLog[eventIdx + 1] == Event{testIdx, EventType::Unlocked});
+    }
+}
+
+TEST_CASE("async_lock (shallow stack)") {
+    TestThread thread;
+    EventLog eventLog;
+    avast::asio::async_mutex mutex;
+
+    const auto testFunc = [&thread, &eventLog, &mutex](std::size_t idx) -> boost::asio::awaitable<void> {
+        eventLog.emplace_back(idx, EventType::Locking);
+        std::cout << "idx=" << idx << " locking" << std::endl;
+        co_await mutex.async_lock(boost::asio::use_awaitable);
+        std::cout << "idx=" << idx << " locked" << std::endl;
+        eventLog.emplace_back(idx, EventType::Locked);
+
+        boost::asio::steady_timer timer{thread.ioc()};
+        timer.expires_after(1ms);
+        co_await timer.async_wait(boost::asio::use_awaitable);
+
+        eventLog.emplace_back(idx, EventType::Unlocked);
+        std::cout << "idx=" << idx << " unlocking" << std::endl;
+        std::cout << "idx=" << idx << " unlocked" << std::endl;
+        mutex.unlock();
+    };
+
+    size_t n = 50000;
+    for (std::size_t i = 0; i < n; ++i) {
+        boost::asio::co_spawn(thread.ioc(), testFunc(i), boost::asio::detached);
+    }
+    thread.start();
+    REQUIRE(thread.waitForFinished(1000s));
+
+    REQUIRE(eventLog.size() == 3 * n);
+    REQUIRE(eventLog[0] == Event{0, EventType::Locking});
+    REQUIRE(eventLog[1] == Event{0, EventType::Locked});
+    for (std::size_t eventIdx = 2, testIdx = 1; eventIdx < n + 1; ++eventIdx, ++testIdx) {
+        REQUIRE(eventLog[eventIdx] == Event{testIdx, EventType::Locking});
+    }
+    REQUIRE(eventLog[n + 1] == Event{0, EventType::Unlocked});
+    for (std::size_t eventIdx = n + 2, testIdx = 1; eventIdx < eventLog.size(); eventIdx += 2, testIdx += 1) {
+        REQUIRE(eventLog[eventIdx] == Event{testIdx, EventType::Locked});
+        REQUIRE(eventLog[eventIdx + 1] == Event{testIdx, EventType::Unlocked});
+    }
+}
+
+TEST_CASE("async_lock (deep stack)") {
+    TestThread thread;
+    EventLog eventLog;
+    avast::asio::async_mutex mutex;
+
+    const auto testFunc = [&thread, &eventLog, &mutex](std::size_t idx) -> boost::asio::awaitable<void> {
+        eventLog.emplace_back(idx, EventType::Locking);
+        std::cout << "idx=" << idx << " locking" << std::endl;
+        co_await mutex.async_lock(boost::asio::use_awaitable);
+        std::cout << "idx=" << idx << " locked" << std::endl;
+        eventLog.emplace_back(idx, EventType::Locked);
+
+        if (idx == 0) {
+            boost::asio::steady_timer timer{thread.ioc()};
+            timer.expires_after(1ms);
+            co_await timer.async_wait(boost::asio::use_awaitable);
+        }
+
+        eventLog.emplace_back(idx, EventType::Unlocked);
+        std::cout << "idx=" << idx << " unlocking" << std::endl;
+        std::cout << "idx=" << idx << " unlocked" << std::endl;
+        mutex.unlock();
+    };
+
+    size_t n = 50000;
+    for (std::size_t i = 0; i < n; ++i) {
+        boost::asio::co_spawn(thread.ioc(), testFunc(i), boost::asio::detached);
+    }
+    thread.start();
+    REQUIRE(thread.waitForFinished(1000s));
+
+    REQUIRE(eventLog.size() == 3 * n);
+    REQUIRE(eventLog[0] == Event{0, EventType::Locking});
+    REQUIRE(eventLog[1] == Event{0, EventType::Locked});
+    for (std::size_t eventIdx = 2, testIdx = 1; eventIdx < n + 1; ++eventIdx, ++testIdx) {
+        REQUIRE(eventLog[eventIdx] == Event{testIdx, EventType::Locking});
+    }
+    REQUIRE(eventLog[n + 1] == Event{0, EventType::Unlocked});
+    for (std::size_t eventIdx = n + 2, testIdx = 1; eventIdx < eventLog.size(); eventIdx += 2, testIdx += 1) {
         REQUIRE(eventLog[eventIdx] == Event{testIdx, EventType::Locked});
         REQUIRE(eventLog[eventIdx + 1] == Event{testIdx, EventType::Unlocked});
     }
