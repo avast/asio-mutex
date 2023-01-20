@@ -255,7 +255,7 @@ TEST_CASE("async_lock (deep stack)") {
         eventLog.emplace_back(idx, EventType::Unlocked);
         std::cout << "idx=" << idx << " unlocking" << std::endl;
         std::cout << "idx=" << idx << " unlocked" << std::endl;
-        mutex.unlock();
+        mutex.unlock(co_await boost::asio::this_coro::executor);
     };
 
     size_t n = 50000;

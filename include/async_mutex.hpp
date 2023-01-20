@@ -233,6 +233,10 @@ public:
     }
 #endif
 
+    template <class Executor> void unlock(const Executor &executor) {
+        boost::asio::post(executor, [this]() { unlock(); });
+    }
+
     /**
      * \brief Releases the lock.
      *
