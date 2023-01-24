@@ -104,15 +104,15 @@ TEST_CASE("async_mutex_lock") {
     avast::asio::async_mutex mutex;
     const auto testFunc = [&mutex]() -> boost::asio::awaitable<void> {
         REQUIRE(mutex.try_lock()); // lock is acquired
-        auto executor = co_await boost::asio::this_coro::executor;
         {
             // async_mutex_lock holds the mutex
-            avast::asio::async_mutex_lock lock(executor, mutex, std::adopt_lock);
+            avast::asio::async_mutex_lock lock(mutex, std::adopt_lock);
             // the mutex remains locked
             REQUIRE_FALSE(mutex.try_lock());
         }                          // the lock is destroyed and mutex unlock should be scheduled
         REQUIRE(mutex.try_lock()); // lock is acquired
         mutex.unlock();
+        co_return;
     };
     boost::asio::io_context ctx;
     boost::asio::co_spawn(ctx, testFunc, boost::asio::detached);
@@ -126,8 +126,7 @@ TEST_CASE("async_scoped_lock (simple)") {
 
     const auto testFunc = [&thread, &eventLog, &mutex](int idx) -> boost::asio::awaitable<void> {
         eventLog.emplace_back(idx, EventType::Locking);
-        auto executor = co_await boost::asio::this_coro::executor;
-        const auto lock = co_await mutex.async_scoped_lock(executor, boost::asio::use_awaitable);
+        const auto lock = co_await mutex.async_scoped_lock(boost::asio::use_awaitable);
         eventLog.emplace_back(idx, EventType::Locked);
 
         boost::asio::steady_timer timer{thread.ioc()};
@@ -158,8 +157,7 @@ TEST_CASE("async_lock (simple)") {
 
     const auto testFunc = [&thread, &eventLog, &mutex](std::size_t idx) -> boost::asio::awaitable<void> {
         eventLog.emplace_back(idx, EventType::Locking);
-        auto executor = co_await boost::asio::this_coro::executor;
-        co_await mutex.async_lock(executor, boost::asio::use_awaitable);
+        co_await mutex.async_lock(boost::asio::use_awaitable);
         eventLog.emplace_back(idx, EventType::Locked);
 
         boost::asio::steady_timer timer{thread.ioc()};
@@ -191,8 +189,7 @@ TEST_CASE("async_lock (multiple coroutines)") {
 
     const auto testFunc = [&thread, &eventLog, &mutex](std::size_t idx) -> boost::asio::awaitable<void> {
         eventLog.emplace_back(idx, EventType::Locking);
-        auto executor = co_await boost::asio::this_coro::executor;
-        co_await mutex.async_lock(executor, boost::asio::use_awaitable);
+        co_await mutex.async_lock(boost::asio::use_awaitable);
         eventLog.emplace_back(idx, EventType::Locked);
 
         boost::asio::steady_timer timer{thread.ioc()};
@@ -228,8 +225,7 @@ TEST_CASE("async_lock (shallow stack)") {
 
     const auto testFunc = [&thread, &eventLog, &mutex](std::size_t idx) -> boost::asio::awaitable<void> {
         eventLog.emplace_back(idx, EventType::Locking);
-        auto executor = co_await boost::asio::this_coro::executor;
-        co_await mutex.async_lock(executor, boost::asio::use_awaitable);
+        co_await mutex.async_lock(boost::asio::use_awaitable);
         eventLog.emplace_back(idx, EventType::Locked);
 
         boost::asio::steady_timer timer{thread.ioc()};
@@ -264,8 +260,7 @@ TEST_CASE("async_lock (deep stack)") {
 
     const auto testFunc = [&thread, &eventLog, &mutex](std::size_t idx) -> boost::asio::awaitable<void> {
         eventLog.emplace_back(idx, EventType::Locking);
-        auto executor = co_await boost::asio::this_coro::executor;
-        co_await mutex.async_lock(executor, boost::asio::use_awaitable);
+        co_await mutex.async_lock(boost::asio::use_awaitable);
         eventLog.emplace_back(idx, EventType::Locked);
 
         if (idx == 0) {
@@ -302,8 +297,7 @@ TEST_CASE("async_lock (multithreaded)") {
 
     const auto testFunc = [&eventLog, &mutex](boost::asio::io_context &ioc,
                                               std::size_t idx) -> boost::asio::awaitable<void> {
-        auto executor = co_await boost::asio::this_coro::executor;
-        co_await mutex.async_lock(executor, boost::asio::use_awaitable);
+        co_await mutex.async_lock(boost::asio::use_awaitable);
         eventLog.emplace_back(idx, EventType::Locked);
 
         boost::asio::steady_timer timer{ioc};
