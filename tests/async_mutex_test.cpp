@@ -5,7 +5,6 @@
 #include <boost/asio/detached.hpp>
 
 #include <coroutine>
-#include <iostream>
 #include <chrono>
 #include <thread>
 #include <stop_token>
@@ -156,9 +155,7 @@ TEST_CASE("async_lock (multiple coroutines)") {
 
     const auto testFunc = [&thread, &eventLog, &mutex](std::size_t idx) -> boost::asio::awaitable<void> {
         eventLog.emplace_back(idx, EventType::Locking);
-        std::cout << "idx=" << idx << " locking" << std::endl;
         co_await mutex.async_lock(boost::asio::use_awaitable);
-        std::cout << "idx=" << idx << " locked" << std::endl;
         eventLog.emplace_back(idx, EventType::Locked);
 
         boost::asio::steady_timer timer{thread.ioc()};
@@ -168,8 +165,6 @@ TEST_CASE("async_lock (multiple coroutines)") {
         }
 
         eventLog.emplace_back(idx, EventType::Unlocked);
-        std::cout << "idx=" << idx << " unlocking" << std::endl;
-        std::cout << "idx=" << idx << " unlocked" << std::endl;
         mutex.unlock();
     };
 
@@ -199,9 +194,7 @@ TEST_CASE("async_lock (shallow stack)") {
 
     const auto testFunc = [&thread, &eventLog, &mutex](std::size_t idx) -> boost::asio::awaitable<void> {
         eventLog.emplace_back(idx, EventType::Locking);
-        std::cout << "idx=" << idx << " locking" << std::endl;
         co_await mutex.async_lock(boost::asio::use_awaitable);
-        std::cout << "idx=" << idx << " locked" << std::endl;
         eventLog.emplace_back(idx, EventType::Locked);
 
         boost::asio::steady_timer timer{thread.ioc()};
@@ -209,8 +202,6 @@ TEST_CASE("async_lock (shallow stack)") {
         co_await timer.async_wait(boost::asio::use_awaitable);
 
         eventLog.emplace_back(idx, EventType::Unlocked);
-        std::cout << "idx=" << idx << " unlocking" << std::endl;
-        std::cout << "idx=" << idx << " unlocked" << std::endl;
         mutex.unlock();
     };
 
@@ -241,9 +232,7 @@ TEST_CASE("async_lock (deep stack)") {
 
     const auto testFunc = [&thread, &eventLog, &mutex](std::size_t idx) -> boost::asio::awaitable<void> {
         eventLog.emplace_back(idx, EventType::Locking);
-        std::cout << "idx=" << idx << " locking" << std::endl;
         co_await mutex.async_lock(boost::asio::use_awaitable);
-        std::cout << "idx=" << idx << " locked" << std::endl;
         eventLog.emplace_back(idx, EventType::Locked);
 
         if (idx == 0) {
@@ -253,8 +242,6 @@ TEST_CASE("async_lock (deep stack)") {
         }
 
         eventLog.emplace_back(idx, EventType::Unlocked);
-        std::cout << "idx=" << idx << " unlocking" << std::endl;
-        std::cout << "idx=" << idx << " unlocked" << std::endl;
         mutex.unlock(co_await boost::asio::this_coro::executor);
     };
 
