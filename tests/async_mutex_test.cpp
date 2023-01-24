@@ -4,6 +4,7 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/detached.hpp>
 
+#include <boost/asio/use_awaitable.hpp>
 #include <coroutine>
 #include <chrono>
 #include <thread>
@@ -64,25 +65,39 @@ using EventLog = std::vector<Event>;
 
 TEST_CASE("try_lock") {
     avast::asio::async_mutex mutex;
-    REQUIRE(mutex.try_lock());
-    REQUIRE_FALSE(mutex.try_lock());
-    mutex.unlock();
-    REQUIRE(mutex.try_lock());
-    mutex.unlock();
+    const auto testFunc = [&mutex]() -> boost::asio::awaitable<void> {
+        REQUIRE(mutex.try_lock());
+        REQUIRE_FALSE(mutex.try_lock());
+        auto executor = co_await boost::asio::this_coro::executor;
+        mutex.unlock(executor);
+        REQUIRE_FALSE(mutex.try_lock()); // unlock scheduled, not executed
+        co_await mutex.async_lock(boost::asio::use_awaitable); // unlocks and locks
+        mutex.unlock(executor);
+    };
+    boost::asio::io_context ctx;
+    boost::asio::co_spawn(ctx, testFunc, boost::asio::detached);
+    ctx.run();
 }
 
 TEST_CASE("async_mutex_lock") {
     avast::asio::async_mutex mutex;
-    REQUIRE(mutex.try_lock()); // lock is acquired
-    {
-        // async_mutex_lock holds the mutex
-        avast::asio::async_mutex_lock lock(mutex, std::adopt_lock);
-        // the mutex remains locked
-        REQUIRE_FALSE(mutex.try_lock());
+    const auto testFunc = [&mutex]() -> boost::asio::awaitable<void> {
+        REQUIRE(mutex.try_lock()); // lock is acquired
+        auto executor = co_await boost::asio::this_coro::executor;
+        {
+            // async_mutex_lock holds the mutex
+            avast::asio::async_mutex_lock lock(executor, mutex, std::adopt_lock);
+            // the mutex remains locked
+            REQUIRE_FALSE(mutex.try_lock());
 
-    }                          // the lock is destroyed and mutex should be unlocked
-    REQUIRE(mutex.try_lock()); // lock is acquired
-    mutex.unlock();
+        }                          // the lock is destroyed and mutex unlock should be scheduled
+        co_await mutex.async_lock(boost::asio::use_awaitable); // unlocks and locks
+        REQUIRE(!mutex.try_lock()); // lock is acquired
+        mutex.unlock(executor);
+    };
+    boost::asio::io_context ctx;
+    boost::asio::co_spawn(ctx, testFunc, boost::asio::detached);
+    ctx.run();
 }
 
 TEST_CASE("async_scoped_lock (simple)") {
@@ -92,7 +107,8 @@ TEST_CASE("async_scoped_lock (simple)") {
 
     const auto testFunc = [&thread, &eventLog, &mutex](int idx) -> boost::asio::awaitable<void> {
         eventLog.emplace_back(idx, EventType::Locking);
-        const auto lock = co_await mutex.async_scoped_lock(boost::asio::use_awaitable);
+        auto executor = co_await boost::asio::this_coro::executor;
+        const auto lock = co_await mutex.async_scoped_lock(executor, boost::asio::use_awaitable);
         eventLog.emplace_back(idx, EventType::Locked);
 
         boost::asio::steady_timer timer{thread.ioc()};
@@ -131,7 +147,8 @@ TEST_CASE("async_lock (simple)") {
         co_await timer.async_wait(boost::asio::use_awaitable);
 
         eventLog.emplace_back(idx, EventType::Unlocked);
-        mutex.unlock();
+        auto executor = co_await boost::asio::this_coro::executor;
+        mutex.unlock(executor);
     };
 
     boost::asio::co_spawn(thread.ioc(), testFunc(1), boost::asio::detached);
@@ -165,7 +182,8 @@ TEST_CASE("async_lock (multiple coroutines)") {
         }
 
         eventLog.emplace_back(idx, EventType::Unlocked);
-        mutex.unlock();
+        auto executor = co_await boost::asio::this_coro::executor;
+        mutex.unlock(executor);
     };
 
     for (std::size_t i = 0; i < 10; ++i) {
@@ -202,7 +220,8 @@ TEST_CASE("async_lock (shallow stack)") {
         co_await timer.async_wait(boost::asio::use_awaitable);
 
         eventLog.emplace_back(idx, EventType::Unlocked);
-        mutex.unlock();
+        auto executor = co_await boost::asio::this_coro::executor;
+        mutex.unlock(executor);
     };
 
     size_t n = 50000;
@@ -242,7 +261,8 @@ TEST_CASE("async_lock (deep stack)") {
         }
 
         eventLog.emplace_back(idx, EventType::Unlocked);
-        mutex.unlock(co_await boost::asio::this_coro::executor);
+        auto executor = co_await boost::asio::this_coro::executor;
+        mutex.unlock(executor);
     };
 
     size_t n = 50000;
@@ -279,7 +299,8 @@ TEST_CASE("async_lock (multithreaded)") {
         co_await timer.async_wait(boost::asio::use_awaitable);
 
         eventLog.emplace_back(idx, EventType::Unlocked);
-        mutex.unlock();
+        auto executor = co_await boost::asio::this_coro::executor;
+        mutex.unlock(executor);
     };
 
     TestThread threads[10];
