@@ -359,10 +359,11 @@ void async_lock_initiator_base<Waiter>::operator()(Handler &&handler) {
                 return;
             }
         } else {
-            // NOLINTNEXTLINE(performance-no-int-to-ptr)
             if (!waiter) {
+                // NOLINTNEXTLINE(performance-no-int-to-ptr)
                 waiter.reset(new Waiter(m_mutex, reinterpret_cast<locked_waiter *>(old_state), std::forward<Handler>(handler)));
             } else {
+                // NOLINTNEXTLINE(performance-no-int-to-ptr)
                 waiter->next = reinterpret_cast<locked_waiter *>(old_state);
             }
             if (m_mutex->m_state.compare_exchange_weak(old_state, reinterpret_cast<std::uintptr_t>(waiter.get()),
