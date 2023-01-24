@@ -46,11 +46,23 @@ struct locked_waiter {
     locked_waiter *next = nullptr;
 };
 
+template <typename Executor> struct locked_waiter_with_executor: public locked_waiter {
+    /**
+     * \brief Constructs a new locked_waiter.
+     * \param executor An executor used for unlocking.
+     * \param next_waiter Pointer to the waiter to prepend this locked_waiter to.
+     **/
+    explicit locked_waiter_with_executor(const Executor &executor, locked_waiter *next_waiter):
+        locked_waiter(next_waiter), m_executor(executor) {}
+protected:
+    Executor m_executor; //!< The exector for unlocking.
+};
+
 /**
  * \brief Locked waiter that used `async_mutex::async_lock()` to acquire the lock.
  **/
 template <typename Executor, typename Token>
-struct async_locked_waiter final: public locked_waiter {
+struct async_locked_waiter final: public locked_waiter_with_executor<Executor> {
     /**
      * \brief Constructs a new async_locked_waiter.
      * \param executor An executor used for unlocking.
@@ -58,14 +70,13 @@ struct async_locked_waiter final: public locked_waiter {
      * \param next_waiter Pointer to the head of the waiters linked list to prepend this waiter to.
      * \param token The complention token to call when the asynchronous operation is completed.
      **/
-    async_locked_waiter([[maybe_unused]] const Executor &executor, [[maybe_unused]] async_mutex *mutex,
+    async_locked_waiter(const Executor &executor, [[maybe_unused]] async_mutex *mutex,
                         locked_waiter *next_waiter, Token &&token):
-        locked_waiter(next_waiter), m_token(std::move(token)) {}
+        locked_waiter_with_executor<Executor>(executor, next_waiter), m_token(std::move(token)) {}
 
     void completion() override {
-        m_token();
+        boost::asio::post(this->m_executor, [token = std::move(m_token)]() mutable { token(); });
     }
-
 private:
     Token m_token; //!< The completion token to invoke when the lock is acquired.
 };
@@ -74,7 +85,7 @@ private:
  * \brief Locked waiter that used `async_mutex::async_scoped_lock()` to acquire the lock.
  **/
 template <typename Executor, typename Token>
-struct scoped_async_locked_waiter final: public locked_waiter {
+struct scoped_async_locked_waiter final: public locked_waiter_with_executor<Executor> {
     /**
      * \brief Constructs a new scoped_async_locked_waiter.
      * \param executor An executor used to unlock a lock.
@@ -82,13 +93,13 @@ struct scoped_async_locked_waiter final: public locked_waiter {
      * \param next_waiter Pointer to the head of the waiters linked list to prepend this waiter to.
      * \param token The complention token to call when the asynchronous operation is completed.
      **/
-    scoped_async_locked_waiter(const Executor &executor, async_mutex *mutex, locked_waiter *next_waiter, Token &&token):
-        locked_waiter(next_waiter), m_executor(executor), m_mutex(mutex), m_token(std::move(token)) {}
+    scoped_async_locked_waiter(const Executor &executor, async_mutex *mutex, locked_waiter *next_waiter,
+                               Token &&token):
+        locked_waiter_with_executor<Executor>(executor, next_waiter), m_mutex(mutex), m_token(std::move(token)) {}
 
     void completion() override;
 
 private:
-    [[no_unique_address]] Executor m_executor; //!< The exector for unlocking.
     async_mutex *m_mutex; //!< The mutex whose lock is being awaited.
     Token m_token;        //!< The completion token to invoke when the lock is acquired.
 };
@@ -192,12 +203,12 @@ public:
      *         The result of `co_await`ing the awaitable is void.
      **/
 #ifdef DOXYGEN
-    template <Executor, typename LockToken>
+    template <typename Executor, typename LockToken>
     boost::asio::awaitable<> async_lock(const Executor &executor, LockToken &&token);
 #else
-    template <boost::asio::completion_token_for<void()> LockToken>
-    [[nodiscard]] auto async_lock(LockToken&& token) {
-        return boost::asio::async_initiate<LockToken, void()>(detail::initiate_async_lock<no_executor>({}, this), token);
+    template <typename Executor, boost::asio::completion_token_for<void()> LockToken>
+    [[nodiscard]] auto async_lock(const Executor &executor, LockToken&& token) {
+        return boost::asio::async_initiate<LockToken, void()>(detail::initiate_async_lock<Executor>(executor, this), token);
     }
 #endif
 
@@ -225,11 +236,6 @@ public:
     }
 #endif
 
-    template <class Executor> void unlock(const Executor &executor) {
-        boost::asio::post(executor, [this]() { unlock(); });
-    }
-
-private:
     /**
      * \brief An empty type used when an executor is not needed.
      */
@@ -279,6 +285,7 @@ private:
         delete waiters_head;
     }
 
+private:
     template <typename Executor, template <typename ExecutorType, typename Token> typename Waiter>
     friend class detail::async_lock_initiator_base;
 
@@ -344,7 +351,7 @@ public:
 
     ~async_mutex_lock() {
         if (m_mutex != nullptr) {
-            m_mutex->unlock(m_executor);
+            m_mutex->unlock();
         }
     }
 
@@ -358,7 +365,10 @@ namespace detail {
 
 template <typename Executor, typename Token>
 void scoped_async_locked_waiter<Executor, Token>::completion() {
-    m_token(async_mutex_lock{m_executor, *m_mutex, std::adopt_lock});
+    boost::asio::post(this->m_executor,
+        [token = std::move(m_token), executor = this->m_executor, mutex = m_mutex]() mutable {
+            token(async_mutex_lock{executor, *mutex, std::adopt_lock});
+        });
 }
 
 template <typename Executor, template <typename ExecutorType, typename Token> typename Waiter>
