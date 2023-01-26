@@ -1,8 +1,8 @@
 # Async Mutex for Boost Asio
 
-This repository contains an implementation of an asynchronous mutex. Asynchronous here means
-that the locking operation can be `co_await`ed, thus avoiding potential deadlocks in multithreaded
-coroutine code.
+This repository contains an implementation of an asynchronous mutex for Boos Asio. Asynchronous 
+here means that the locking operation can be `co_await`ed, thus avoiding potential deadlocks 
+in multithreaded coroutine code.
 
 *Credits*: the implementation of the mutex itself is heavily inspired by Lewis Bakers's `async_mutex`
 from [cppcoro](https://github.com/lewissbaker/cppcoro/), published under the MIT license.
@@ -104,3 +104,5 @@ public:
 ## Authors
 
 * Daniel Vrátil <daniel.vratil@gendigital.com>
+* Martin Beran <martin.beran@gendigital.com>
+
