@@ -3,6 +3,7 @@
 #include <boost/asio/associated_executor.hpp>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/async_result.hpp>
+#include <boost/asio/post.hpp>
 #include <boost/asio/use_awaitable.hpp>
 
 #include <atomic>
@@ -65,6 +66,7 @@ struct async_locked_waiter final: public locked_waiter {
         auto executor = boost::asio::get_associated_executor(m_token);
         boost::asio::post(std::move(executor), [token = std::move(m_token)]() mutable { token(); });
     }
+
 private:
     Token m_token; //!< The completion token to invoke when the lock is acquired.
 };
@@ -189,7 +191,7 @@ public:
     boost::asio::awaitable<> async_lock(LockToken &&token);
 #else
     template <boost::asio::completion_token_for<void()> LockToken>
-    [[nodiscard]] auto async_lock(LockToken&& token) {
+    [[nodiscard]] auto async_lock(LockToken &&token) {
         return boost::asio::async_initiate<LockToken, void()>(detail::initiate_async_lock(this), token);
     }
 #endif
@@ -212,9 +214,9 @@ public:
     boost::asio::awaitable<async_mutex_lock> async_scoped_lock(LockToken &&token);
 #else
     template <boost::asio::completion_token_for<void(async_mutex_lock)> LockToken>
-    [[nodiscard]] auto async_scoped_lock(LockToken&& token) {
-        return boost::asio::async_initiate<LockToken, void(async_mutex_lock)>(
-            detail::initiate_scoped_async_lock(this), token);
+    [[nodiscard]] auto async_scoped_lock(LockToken &&token) {
+        return boost::asio::async_initiate<LockToken, void(async_mutex_lock)>(detail::initiate_scoped_async_lock(this),
+                                                                              token);
     }
 #endif
 
@@ -306,9 +308,7 @@ public:
      * \brief Move constructor.
      * \param other The moved-from object.
      **/
-    async_mutex_lock(async_mutex_lock &&other) noexcept: m_mutex(other.m_mutex) {
-        other.m_mutex = nullptr;
-    }
+    async_mutex_lock(async_mutex_lock &&other) noexcept: m_mutex(other.m_mutex) { other.m_mutex = nullptr; }
 
     async_mutex_lock &operator=(async_mutex_lock &&other) noexcept {
         m_mutex = std::exchange(other.m_mutex, nullptr);
@@ -341,10 +341,9 @@ namespace detail {
 template <typename Token>
 void scoped_async_locked_waiter<Token>::completion() {
     auto executor = boost::asio::get_associated_executor(m_token);
-    boost::asio::post(std::move(executor),
-        [token = std::move(m_token), mutex = m_mutex]() mutable {
-            token(async_mutex_lock{*mutex, std::adopt_lock});
-        });
+    boost::asio::post(std::move(executor), [token = std::move(m_token), mutex = m_mutex]() mutable {
+        token(async_mutex_lock{*mutex, std::adopt_lock});
+    });
 }
 
 template <template <typename Token> typename Waiter>
@@ -364,7 +363,8 @@ void async_lock_initiator_base<Waiter>::operator()(Handler &&handler) {
         } else {
             if (!waiter) {
                 // NOLINTNEXTLINE(performance-no-int-to-ptr)
-                waiter.reset(new Waiter(m_mutex, reinterpret_cast<locked_waiter *>(old_state), std::forward<Handler>(handler)));
+                auto *next_waiter = reinterpret_cast<locked_waiter *>(old_state);
+                waiter.reset(new Waiter(m_mutex, next_waiter, std::forward<Handler>(handler)));
             } else {
                 // NOLINTNEXTLINE(performance-no-int-to-ptr)
                 waiter->next = reinterpret_cast<locked_waiter *>(old_state);

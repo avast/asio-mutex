@@ -55,18 +55,18 @@ enum class EventType { Locking, Locked, Unlocked };
 
 std::ostream &operator<<(std::ostream &os, EventType v) {
     switch (v) {
-    case EventType::Locking:
-        os << "Locking";
-        break;
-    case EventType::Locked:
-        os << "Locked";
-        break;
-    case EventType::Unlocked:
-        os << "Unlocked";
-        break;
-    default:
-        os << "?";
-        break;
+        case EventType::Locking:
+            os << "Locking";
+            break;
+        case EventType::Locked:
+            os << "Locked";
+            break;
+        case EventType::Unlocked:
+            os << "Unlocked";
+            break;
+        default:
+            os << "?";
+            break;
     }
     return os;
 }
