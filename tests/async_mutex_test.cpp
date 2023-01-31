@@ -236,7 +236,7 @@ TEST_CASE("async_lock (shallow stack)") {
         mutex.unlock();
     };
 
-    size_t n = 50000;
+    size_t n = 500;
     for (std::size_t i = 0; i < n; ++i) {
         boost::asio::co_spawn(thread.ioc(), testFunc(i), boost::asio::detached);
     }

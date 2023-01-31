@@ -360,7 +360,6 @@ public:
         std::swap(m_mutex, other.m_mutex);
     }
 
-
 private:
     mutex_type *m_mutex = nullptr; //!< The locked mutex being held by the scoped mutex lock.
 };
