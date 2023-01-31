@@ -315,7 +315,7 @@ public:
      * \brief Initializes the lock with contents of other. Leaves other with no associated mutex.
      * \param other The moved-from object.
      **/
-    async_mutex_lock(async_mutex_lock &&other) noexcept: m_mutex(other.m_mutex) { other.m_mutex = nullptr; }
+    async_mutex_lock(async_mutex_lock &&other) noexcept { swap(other); }
 
     /**
      * \brief Move assignment operator.
@@ -351,6 +351,15 @@ public:
 
     bool owns_lock() const noexcept { return m_mutex != nullptr; }
     mutex_type* mutex() const noexcept { return m_mutex; }
+
+    /**
+     * \brief Swaps state with \c other.
+     * \param other the lock to swap state with.
+     **/
+    void swap(async_mutex_lock &other) noexcept {
+        std::swap(m_mutex, other.m_mutex);
+    }
+
 
 private:
     mutex_type *m_mutex = nullptr; //!< The locked mutex being held by the scoped mutex lock.

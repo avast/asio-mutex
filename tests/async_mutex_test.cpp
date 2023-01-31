@@ -362,3 +362,30 @@ TEST_CASE("async_scoped_lock move assignment") {
     thread.start();
     REQUIRE(thread.waitForFinished(1s));
 }
+
+TEST_CASE("async_scoped_lock swap") {
+    const auto testFunc = []() -> boost::asio::awaitable<void> {
+        avast::asio::async_mutex mutex1;
+        avast::asio::async_mutex mutex2;
+        auto lock1 = co_await mutex1.async_scoped_lock(boost::asio::use_awaitable);
+        REQUIRE(lock1.mutex() == &mutex1);
+        auto lock2 = co_await mutex2.async_scoped_lock(boost::asio::use_awaitable);
+        REQUIRE(lock2.mutex() == &mutex2);
+
+        lock1.swap(lock2);
+
+        // The mutexes owned by the locks should be swapped now
+        REQUIRE(lock1.mutex() == &mutex2);
+        REQUIRE(lock2.mutex() == &mutex1);
+
+        // And should remained locked
+        REQUIRE_FALSE(mutex1.try_lock());
+        REQUIRE_FALSE(mutex2.try_lock());
+    };
+
+    TestThread thread;
+    boost::asio::co_spawn(thread.ioc(), testFunc(), boost::asio::detached);
+    thread.start();
+    REQUIRE(thread.waitForFinished(1s));
+}
+
