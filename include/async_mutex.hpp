@@ -295,6 +295,13 @@ private:
  **/
 class async_mutex_lock {
 public:
+    using mutex_type = async_mutex;
+
+    /**
+     * Constructs a new async_mutex_lock without any associated mutex.
+     **/
+    explicit async_mutex_lock() noexcept = default;
+
     /**
      * Constructs a new async_mutex_lock, taking ownership of the \c mutex.
      *
@@ -302,15 +309,26 @@ public:
      *
      * \warning The \c mutex must be in a locked state.
      **/
-    explicit async_mutex_lock(async_mutex &mutex, std::adopt_lock_t) noexcept: m_mutex(&mutex) {}
+    explicit async_mutex_lock(mutex_type &mutex, std::adopt_lock_t) noexcept: m_mutex(&mutex) {}
 
     /**
-     * \brief Move constructor.
+     * \brief Initializes the lock with contents of other. Leaves other with no associated mutex.
      * \param other The moved-from object.
      **/
     async_mutex_lock(async_mutex_lock &&other) noexcept: m_mutex(other.m_mutex) { other.m_mutex = nullptr; }
 
+    /**
+     * \brief Move assignment operator.
+     * Replaces the current mutex with those of \c other using move semantics.
+     * If \c *this already has an associated mutex, the mutex is unlocked.
+     *
+     * \param other The moved-from object.
+     * \returns *this.
+     */
     async_mutex_lock &operator=(async_mutex_lock &&other) noexcept {
+        if (m_mutex) {
+            m_mutex->unlock();
+        }
         m_mutex = std::exchange(other.m_mutex, nullptr);
         return *this;
     }
@@ -331,8 +349,11 @@ public:
         }
     }
 
+    bool owns_lock() const noexcept { return m_mutex != nullptr; }
+    mutex_type* mutex() const noexcept { return m_mutex; }
+
 private:
-    async_mutex *m_mutex; //!< The locked mutex being held by the scoped mutex lock.
+    mutex_type *m_mutex = nullptr; //!< The locked mutex being held by the scoped mutex lock.
 };
 
 /** \internal **/
