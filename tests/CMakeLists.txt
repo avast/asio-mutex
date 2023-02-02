@@ -9,6 +9,25 @@ target_link_libraries(async_mutex_test PRIVATE
     asio-mutex-header
 )
 
+if (SANITIZER)
+    if ("${SANITIZER}" STREQUAL "asan")
+        target_compile_options(async_mutex_test PRIVATE -fsanitize -fno-omit-frame-pointer -fsanitize-address-use-after-scope)
+    elseif ("${SANITIZER}" STREQUAL "tsan")
+        target_compile_options(async_mutex_test PRIVATE -fsanitize=thread)
+    elseif ("${SANITIZER}" STREQUAL "ubsan")
+        target_compile_options(async_mutex_test PRIVATE -fsanitize=undefined)
+    elseif ("${SANITIZER}" STREQUAL "msan")
+        target_compile_options(async_mutex_test PRIVATE -fsanitize=memory)
+    else ()
+        message(FATAL_ERROR "Invalid SANITIZER value \"${SANITIZER}\", supported values: \"asan\", \"tsan\", \"ubsan\", \"msan\".")
+    endif()
+endif()
+
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    target_compile_options(async_mutex_test PRIVATE -Wall -Wextra -Werror -pedantic)
+endif()
+
+
 include(Catch)
 catch_discover_tests(async_mutex_test)
 
