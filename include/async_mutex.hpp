@@ -326,7 +326,7 @@ public:
      * \returns *this.
      */
     async_mutex_lock &operator=(async_mutex_lock &&other) noexcept {
-        if (m_mutex) {
+        if (m_mutex != nullptr) {
             m_mutex->unlock();
         }
         m_mutex = std::exchange(other.m_mutex, nullptr);
