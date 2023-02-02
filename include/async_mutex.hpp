@@ -216,7 +216,7 @@ public:
     template <::asio::completion_token_for<void(async_mutex_lock)> LockToken>
     [[nodiscard]] auto async_scoped_lock(LockToken &&token) {
         return ::asio::async_initiate<LockToken, void(async_mutex_lock)>(detail::initiate_scoped_async_lock(this),
-                                                                              token);
+                                                                          token);
     }
 #endif
 
@@ -350,15 +350,13 @@ public:
     }
 
     bool owns_lock() const noexcept { return m_mutex != nullptr; }
-    mutex_type* mutex() const noexcept { return m_mutex; }
+    mutex_type *mutex() const noexcept { return m_mutex; }
 
     /**
      * \brief Swaps state with \c other.
      * \param other the lock to swap state with.
      **/
-    void swap(async_mutex_lock &other) noexcept {
-        std::swap(m_mutex, other.m_mutex);
-    }
+    void swap(async_mutex_lock &other) noexcept { std::swap(m_mutex, other.m_mutex); }
 
 private:
     mutex_type *m_mutex = nullptr; //!< The locked mutex being held by the scoped mutex lock.

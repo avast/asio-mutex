@@ -295,8 +295,7 @@ TEST_CASE("async_lock (multithreaded)") {
     EventLog eventLog;
     avast::asio::async_mutex mutex;
 
-    const auto testFunc = [&eventLog, &mutex](asio::io_context &ioc,
-                                              std::size_t idx) -> asio::awaitable<void> {
+    const auto testFunc = [&eventLog, &mutex](asio::io_context &ioc, std::size_t idx) -> asio::awaitable<void> {
         co_await mutex.async_lock(asio::use_awaitable);
         eventLog.emplace_back(idx, EventType::Locked);
 
@@ -352,8 +351,8 @@ TEST_CASE("async_scoped_lock move assignment") {
         lock = co_await mutex2.async_scoped_lock(asio::use_awaitable);
         REQUIRE(lock.owns_lock());
         REQUIRE(lock.mutex() == &mutex2);
-        REQUIRE(mutex1.try_lock()); // mutex1 should've been released
-        mutex1.unlock(); // make sure to unlock mutex1 now
+        REQUIRE(mutex1.try_lock());       // mutex1 should've been released
+        mutex1.unlock();                  // make sure to unlock mutex1 now
         REQUIRE_FALSE(mutex2.try_lock()); // mutex2 is locked by the lock now
     };
 
@@ -388,4 +387,3 @@ TEST_CASE("async_scoped_lock swap") {
     thread.start();
     REQUIRE(thread.waitForFinished(1s));
 }
-
