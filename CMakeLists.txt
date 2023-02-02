@@ -8,37 +8,49 @@ set(ENABLE_TESTING ON)
 
 set(SANITIZER "" CACHE STRING "Specify which sanitizer to build with (supported: \"asan\", \"tsan\", \"ubsan\", \"msan\")")
 
-find_package(Boost 1.80 REQUIRED)
 find_package(Doxygen COMPONENTS dot)
 set_package_properties(Doxygen PROPERTIES TYPE OPTIONAL)
 
-if (SANITIZER)
-    if ("${SANITIZER}" STREQUAL "asan")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -fsanitize-address-use-after-scope")
-    elseif ("${SANITIZER}" STREQUAL "tsan")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
-    elseif ("${SANITIZER}" STREQUAL "ubsan")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
-    elseif ("${SANITIZER}" STREQUAL "msan")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=memory")
-    else ()
-        message(FATAL_ERROR "Invalid SANITIZER value \"${SANITIZER}\", supported values: \"asan\", \"tsan\", \"ubsan\", \"msan\".")
-    endif()
-endif()
-
-if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -pedantic ")
-endif()
-
-add_library(asio_mutex INTERFACE)
-target_include_directories(asio_mutex INTERFACE
+add_library(asio-mutex-header INTERFACE)
+target_compile_features(asio-mutex-header INTERFACE cxx_std_20)
+target_include_directories(asio-mutex-header INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-target_link_libraries(asio_mutex INTERFACE Boost::boost)
+
+if (TARGET asio-uring-header)
+    target_link_libraries(asio-mutex-header INTERFACE asio-uring-header)
+else()
+    target_include_directories(asio-mutex-header INTERFACE
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/external/asio/asio/include>"
+    )
+    target_compile_definitions(asio-mutex-header INTERFACE
+        ASIO_HAS_CO_AWAIT ASIO_HAS_STD_COROUTINE ASIO_NO_DEPRECATED ASIO_HAS_STD_INVOKE_RESULT
+        ASIO_STANDALONE ASIO_NO_TYPEID
+    )
+endif()
 
 add_subdirectory(doc)
+
 if (ENABLE_TESTING)
+    if (SANITIZER)
+        if ("${SANITIZER}" STREQUAL "asan")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -fsanitize-address-use-after-scope")
+        elseif ("${SANITIZER}" STREQUAL "tsan")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+        elseif ("${SANITIZER}" STREQUAL "ubsan")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
+        elseif ("${SANITIZER}" STREQUAL "msan")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=memory")
+        else ()
+            message(FATAL_ERROR "Invalid SANITIZER value \"${SANITIZER}\", supported values: \"asan\", \"tsan\", \"ubsan\", \"msan\".")
+        endif()
+    endif()
+
+    if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -pedantic ")
+    endif()
+
     enable_testing()
     include(CTest)
     add_subdirectory(tests)
