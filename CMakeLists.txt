@@ -19,8 +19,10 @@ target_include_directories(asio-mutex-header INTERFACE
 )
 
 if (TARGET asio-uring-header)
+    message(STATUS "Using Asio from asio-uring")
     target_link_libraries(asio-mutex-header INTERFACE asio-uring-header)
 else()
+    message(STATUS "Using Asio from external")
     target_include_directories(asio-mutex-header INTERFACE
         "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/external/asio/asio/include>"
     )

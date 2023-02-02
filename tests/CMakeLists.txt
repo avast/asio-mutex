@@ -6,7 +6,7 @@ target_sources(async_mutex_test PRIVATE
 )
 target_link_libraries(async_mutex_test PRIVATE
     Catch2::Catch2WithMain
-    asio_mutex
+    asio-mutex-header
 )
 
 include(Catch)
