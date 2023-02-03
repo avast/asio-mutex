@@ -15,7 +15,7 @@ target_link_libraries(async_mutex_test PRIVATE
 
 if (SANITIZER)
     if ("${SANITIZER}" STREQUAL "asan")
-        target_compile_options(async_mutex_test PRIVATE -fsanitize -fno-omit-frame-pointer -fsanitize-address-use-after-scope)
+        target_compile_options(async_mutex_test PRIVATE -fsanitize=address -fno-omit-frame-pointer -fsanitize-address-use-after-scope)
     elseif ("${SANITIZER}" STREQUAL "tsan")
         target_compile_options(async_mutex_test PRIVATE -fsanitize=thread)
     elseif ("${SANITIZER}" STREQUAL "ubsan")
