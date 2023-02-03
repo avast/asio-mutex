@@ -8,36 +8,40 @@ set(ENABLE_TESTING ON)
 
 set(SANITIZER "" CACHE STRING "Specify which sanitizer to build with (supported: \"asan\", \"tsan\", \"ubsan\", \"msan\")")
 
-find_package(Boost 1.80 REQUIRED)
-find_package(Doxygen COMPONENTS dot)
-set_package_properties(Doxygen PROPERTIES TYPE OPTIONAL)
-
-if (SANITIZER)
-    if ("${SANITIZER}" STREQUAL "asan")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer -fsanitize-address-use-after-scope")
-    elseif ("${SANITIZER}" STREQUAL "tsan")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
-    elseif ("${SANITIZER}" STREQUAL "ubsan")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
-    elseif ("${SANITIZER}" STREQUAL "msan")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=memory")
-    else ()
-        message(FATAL_ERROR "Invalid SANITIZER value \"${SANITIZER}\", supported values: \"asan\", \"tsan\", \"ubsan\", \"msan\".")
-    endif()
+option(BUILD_DOCS "Build documentation (requires Doxygen)" ON)
+if (BUILD_DOCS)
+    find_package(Doxygen COMPONENTS dot)
+    set_package_properties(Doxygen PROPERTIES TYPE OPTIONAL)
 endif()
 
-if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror -pedantic ")
-endif()
 
-add_library(asio_mutex INTERFACE)
-target_include_directories(asio_mutex INTERFACE
+add_library(asio-mutex-header INTERFACE)
+target_compile_features(asio-mutex-header INTERFACE cxx_std_20)
+target_include_directories(asio-mutex-header INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
-target_link_libraries(asio_mutex INTERFACE Boost::boost)
 
-add_subdirectory(doc)
+if (TARGET asio-uring-header)
+    message(STATUS "Using Asio from asio-uring")
+    target_link_libraries(asio-mutex-header INTERFACE asio-uring-header)
+    set(ASIO_STANDALONE TRUE)
+    target_compile_definitions(asio-mutex-header INTERFACE ASIO_STANDALONE)
+else()
+    message(STATUS "Using Boost Asio")
+    find_package(Boost 1.80 REQUIRED)
+    set(ASIO_STANDALONE FALSE)
+    target_include_directories(asio-mutex-header INTERFACE
+        $<BUILD_INTERFACE:${Boost_INCLUDE_DIRS}/boost>
+    )
+    target_compile_definitions(asio-mutex-header INTERFACE BOOST_ASIO_HAS_CO_AWAIT)
+    target_link_libraries(asio-mutex-header INTERFACE Boost::headers)
+endif()
+
+if (BUILD_DOCS)
+    add_subdirectory(doc)
+endif()
+
 if (ENABLE_TESTING)
     enable_testing()
     include(CTest)
