@@ -318,3 +318,74 @@ TEST_CASE("async_lock (multithreaded)") {
         REQUIRE(thread.waitForFinished(5s));
     }
 }
+
+TEST_CASE("async_scoped_lock") {
+    avast::asio::async_mutex_lock lock;
+    REQUIRE_FALSE(lock.owns_lock());
+}
+
+TEST_CASE("async_scoped_lock move init") {
+    const auto testFunc = []() -> boost::asio::awaitable<void> {
+        avast::asio::async_mutex mutex;
+        avast::asio::async_mutex_lock lock(co_await mutex.async_scoped_lock(boost::asio::use_awaitable));
+        REQUIRE(lock.owns_lock());
+    };
+
+    TestThread thread;
+    boost::asio::co_spawn(thread.ioc(), testFunc(), boost::asio::detached);
+    thread.start();
+    REQUIRE(thread.waitForFinished(1s));
+}
+
+TEST_CASE("async_scoped_lock move assignment") {
+    const auto testFunc = []() -> boost::asio::awaitable<void> {
+        avast::asio::async_mutex_lock lock;
+        REQUIRE_FALSE(lock.owns_lock());
+
+        avast::asio::async_mutex mutex1;
+        lock = co_await mutex1.async_scoped_lock(boost::asio::use_awaitable);
+        REQUIRE(lock.owns_lock());
+        REQUIRE(lock.mutex() == &mutex1);
+        REQUIRE_FALSE(mutex1.try_lock()); // locked by lock
+
+        avast::asio::async_mutex mutex2;
+        lock = co_await mutex2.async_scoped_lock(boost::asio::use_awaitable);
+        REQUIRE(lock.owns_lock());
+        REQUIRE(lock.mutex() == &mutex2);
+        REQUIRE(mutex1.try_lock()); // mutex1 should've been released
+        mutex1.unlock(); // make sure to unlock mutex1 now
+        REQUIRE_FALSE(mutex2.try_lock()); // mutex2 is locked by the lock now
+    };
+
+    TestThread thread;
+    boost::asio::co_spawn(thread.ioc(), testFunc(), boost::asio::detached);
+    thread.start();
+    REQUIRE(thread.waitForFinished(1s));
+}
+
+TEST_CASE("async_scoped_lock swap") {
+    const auto testFunc = []() -> boost::asio::awaitable<void> {
+        avast::asio::async_mutex mutex1;
+        avast::asio::async_mutex mutex2;
+        auto lock1 = co_await mutex1.async_scoped_lock(boost::asio::use_awaitable);
+        REQUIRE(lock1.mutex() == &mutex1);
+        auto lock2 = co_await mutex2.async_scoped_lock(boost::asio::use_awaitable);
+        REQUIRE(lock2.mutex() == &mutex2);
+
+        lock1.swap(lock2);
+
+        // The mutexes owned by the locks should be swapped now
+        REQUIRE(lock1.mutex() == &mutex2);
+        REQUIRE(lock2.mutex() == &mutex1);
+
+        // And should remained locked
+        REQUIRE_FALSE(mutex1.try_lock());
+        REQUIRE_FALSE(mutex2.try_lock());
+    };
+
+    TestThread thread;
+    boost::asio::co_spawn(thread.ioc(), testFunc(), boost::asio::detached);
+    thread.start();
+    REQUIRE(thread.waitForFinished(1s));
+}
+
