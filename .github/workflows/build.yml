@@ -1,0 +1,43 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  BUILD_TYPE: RelWithDebInfo
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Boost
+      run: |
+        wget -nv https://boostorg.jfrog.io/artifactory/main/release/1.80.0/source/boost_1_80_0.tar.bz2
+        mkdir -p /tmp/boost
+        tar -C /tmp/boost -xf boost_1_80_0.tar.bz2
+
+    - name: Install Catch2
+      run: |
+        sudo apt-get install catch2
+
+    - name: Configure CMake
+      run: |
+        cmake -B ${{github.workspace}}/build \
+              -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+              -DENABLE_TESTING=ON \
+              -DBoost_INCLUDE_DIR=/tmp/boost/boost_1_80_0/
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      run: ctest -C ${{env.BUILD_TYPE}}
+
