@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023 Daniel Vrátil <daniel.vratil@gendigital.com>
+#
+# SPDX-License-Identifier: BSL-1.0
+
 cmake_minimum_required(VERSION 3.10)
 project(asio_mutex)
 

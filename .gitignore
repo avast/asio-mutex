@@ -1,5 +1,10 @@
+# SPDX-FileCopyrightText: 2023 Daniel Vrátil <daniel.vratil@gendigital.com>
+#
+# SPDX-License-Identifier: BSL-1.0
+
 build
 build-*
 compile_commands.json
 .ccls-cache
 *~
+.reuse

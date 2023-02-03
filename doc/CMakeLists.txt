@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023 Daniel Vrátil <daniel.vratil@gendigital.com>
+#
+# SPDX-License-Identifier: BSL-1.0
+
 if (${DOXYGEN_FOUND})
     set(DOXYGEN_EXAMPLE_PATH ${CMAKE_SOURCE_DIR}/include)
     set(DOXYGEN_EXTRACT_ANON_NSPACES YES)

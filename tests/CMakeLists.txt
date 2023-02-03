@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2023 Daniel Vrátil <daniel.vratil@gendigital.com>
+#
+# SPDX-License-Identifier: BSL-1.0
+
 find_package(Catch2 REQUIRED)
 
 add_executable(async_mutex_test)
