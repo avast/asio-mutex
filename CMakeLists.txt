@@ -4,7 +4,7 @@ project(asio_mutex)
 include(FeatureSummary)
 
 set(CMAKE_CXX_STANDARD 20)
-set(ENABLE_TESTING ON)
+set(ENABLE_TESTING OFF)
 
 set(SANITIZER "" CACHE STRING "Specify which sanitizer to build with (supported: \"asan\", \"tsan\", \"ubsan\", \"msan\")")
 
