@@ -25,15 +25,17 @@ target_include_directories(asio-mutex-header INTERFACE
 if (TARGET asio-uring-header)
     message(STATUS "Using Asio from asio-uring")
     target_link_libraries(asio-mutex-header INTERFACE asio-uring-header)
+    set(ASIO_STANDALONE TRUE)
+    target_compile_definitions(asio-mutex-header INTERFACE ASIO_STANDALONE)
 else()
-    message(STATUS "Using Asio from external")
+    message(STATUS "Using Boost Asio")
+    find_package(Boost 1.80 REQUIRED)
+    set(ASIO_STANDALONE FALSE)
     target_include_directories(asio-mutex-header INTERFACE
-        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/external/asio/asio/include>"
+        $<BUILD_INTERFACE:${Boost_INCLUDE_DIRS}/boost>
     )
-    target_compile_definitions(asio-mutex-header INTERFACE
-        ASIO_HAS_CO_AWAIT ASIO_HAS_STD_COROUTINE ASIO_NO_DEPRECATED ASIO_HAS_STD_INVOKE_RESULT
-        ASIO_STANDALONE ASIO_NO_TYPEID
-    )
+    target_compile_definitions(asio-mutex-header INTERFACE BOOST_ASIO_HAS_CO_AWAIT)
+    target_link_libraries(asio-mutex-header INTERFACE Boost::headers)
 endif()
 
 if (BUILD_DOCS)

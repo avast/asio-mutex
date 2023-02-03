@@ -3,8 +3,12 @@
 #include <asio/awaitable.hpp>
 #include <asio/steady_timer.hpp>
 #include <asio/detached.hpp>
+#include <asio/use_awaitable.hpp>
 
-#include <boost/asio/use_awaitable.hpp>
+#ifndef ASIO_STANDALONE
+using namespace boost;
+#endif
+
 #include <coroutine>
 #include <chrono>
 #include <thread>

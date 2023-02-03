@@ -9,6 +9,12 @@
 #include <atomic>
 #include <functional>
 
+#ifdef ASIO_STANDALONE
+#define ASIO_NS ::asio
+#else
+#define ASIO_NS boost::asio
+#endif
+
 namespace avast::asio {
 
 class async_mutex_lock;
@@ -63,8 +69,8 @@ struct async_locked_waiter final: public locked_waiter {
         locked_waiter(next_waiter), m_token(std::move(token)) {}
 
     void completion() override {
-        auto executor = ::asio::get_associated_executor(m_token);
-        ::asio::post(std::move(executor), [token = std::move(m_token)]() mutable { token(); });
+        auto executor = ASIO_NS::get_associated_executor(m_token);
+        ASIO_NS::post(std::move(executor), [token = std::move(m_token)]() mutable { token(); });
     }
 
 private:
@@ -188,11 +194,11 @@ public:
      **/
 #ifdef DOXYGEN
     template <typename LockToken>
-    ::asio::awaitable<> async_lock(LockToken &&token);
+    ASIO_NS::awaitable<> async_lock(LockToken &&token);
 #else
-    template <::asio::completion_token_for<void()> LockToken>
+    template <ASIO_NS::completion_token_for<void()> LockToken>
     [[nodiscard]] auto async_lock(LockToken &&token) {
-        return ::asio::async_initiate<LockToken, void()>(detail::initiate_async_lock(this), token);
+        return ASIO_NS::async_initiate<LockToken, void()>(detail::initiate_async_lock(this), token);
     }
 #endif
 
@@ -211,12 +217,12 @@ public:
      **/
 #ifdef DOXYGEN
     template <typename LockToken>
-    ::asio::awaitable<async_mutex_lock> async_scoped_lock(LockToken &&token);
+    ASIO_NS::awaitable<async_mutex_lock> async_scoped_lock(LockToken &&token);
 #else
-    template <::asio::completion_token_for<void(async_mutex_lock)> LockToken>
+    template <ASIO_NS::completion_token_for<void(async_mutex_lock)> LockToken>
     [[nodiscard]] auto async_scoped_lock(LockToken &&token) {
-        return ::asio::async_initiate<LockToken, void(async_mutex_lock)>(detail::initiate_scoped_async_lock(this),
-                                                                          token);
+        return ASIO_NS::async_initiate<LockToken, void(async_mutex_lock)>(detail::initiate_scoped_async_lock(this),
+                                                                         token);
     }
 #endif
 
@@ -367,8 +373,8 @@ namespace detail {
 
 template <typename Token>
 void scoped_async_locked_waiter<Token>::completion() {
-    auto executor = ::asio::get_associated_executor(m_token);
-    ::asio::post(std::move(executor), [token = std::move(m_token), mutex = m_mutex]() mutable {
+    auto executor = ASIO_NS::get_associated_executor(m_token);
+    ASIO_NS::post(std::move(executor), [token = std::move(m_token), mutex = m_mutex]() mutable {
         token(async_mutex_lock{*mutex, std::adopt_lock});
     });
 }
