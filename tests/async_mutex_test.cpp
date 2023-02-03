@@ -1,4 +1,8 @@
-#include <asio/io_context.hpp>
+// SPDX-FileCopyrightText: 2023 Daniel Vrátil <daniel.vratil@gendigital.com>
+// SPDX-FileCopyrightText: 2023 Martin Beran <martin.beran@gendigital.com>
+//
+// SPDX-License-Identifier: BSL-1.0
+
 #include <asio/co_spawn.hpp>
 #include <asio/awaitable.hpp>
 #include <asio/steady_timer.hpp>

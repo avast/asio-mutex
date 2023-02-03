@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2023 Daniel Vrátil <daniel.vratil@gendigital.com>
+// SPDX-FileCopyrightText: 2023 Martin Beran <martin.beran@gendigital.com>
+//
+// SPDX-License-Identifier: BSL-1.0
+
 #pragma once
 
 #include <asio/associated_executor.hpp>
