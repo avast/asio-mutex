@@ -395,7 +395,12 @@ void async_lock_initiator_base<Waiter>::operator()(Handler &&handler) {
                                                        std::memory_order_acquire, std::memory_order_relaxed))
             {
                 // Lock acquired, resume the awaiter stright away
-                Waiter(m_mutex, nullptr, std::forward<Handler>(handler)).completion();
+                if (waiter) {
+                    waiter->next = nullptr;
+                    waiter->completion();
+                } else {
+                    Waiter(m_mutex, nullptr, std::forward<Handler>(handler)).completion();
+                }
                 return;
             }
         } else {
