@@ -13,6 +13,7 @@
 
 #include <atomic>
 #include <functional>
+#include <mutex>
 
 #ifdef ASIO_STANDALONE
 #define ASIO_NS ::asio
